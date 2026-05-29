@@ -27,6 +27,29 @@ const SEARCH_URL = process.env.PIXELRAG_SEARCH_URL || "http://localhost:30001"
 const MAX_BUDGET = parseFloat(process.env.CHAT_MAX_BUDGET_USD || "0.50")
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || "*"
 
+// Rate limiting — protects the subscription on a public endpoint.
+const RL_PER_IP = parseInt(process.env.RL_PER_IP || "8", 10)            // requests per IP per window
+const RL_WINDOW_MS = parseInt(process.env.RL_WINDOW_MS || "3600000", 10) // 1 hour
+const RL_GLOBAL_DAILY = parseInt(process.env.RL_GLOBAL_DAILY || "300", 10) // total/day, hard ceiling
+const RL_MAX_CONCURRENT = parseInt(process.env.RL_MAX_CONCURRENT || "3", 10) // simultaneous conversations
+
+const ipHits = new Map() // ip -> number[] (timestamps)
+let dailyCount = 0
+let dailyResetAt = 0
+let inFlight = 0
+
+function rateLimit(ip, now) {
+  if (now >= dailyResetAt) { dailyCount = 0; dailyResetAt = now + 86400000 }
+  if (dailyCount >= RL_GLOBAL_DAILY) return { ok: false, reason: "Daily limit reached — try again tomorrow." }
+  if (inFlight >= RL_MAX_CONCURRENT) return { ok: false, reason: "Server busy — too many conversations at once. Try again shortly." }
+  const hits = (ipHits.get(ip) || []).filter((t) => now - t < RL_WINDOW_MS)
+  if (hits.length >= RL_PER_IP) return { ok: false, reason: "Rate limit reached — please wait a bit before asking again." }
+  hits.push(now)
+  ipHits.set(ip, hits)
+  dailyCount++
+  return { ok: true }
+}
+
 const SYSTEM_PROMPT = `You are a research assistant with access to a visual Wikipedia search engine (PixelRAG).
 
 Workflow:
@@ -145,6 +168,18 @@ const server = http.createServer(async (req, res) => {
       return
     }
 
+    // Rate limit (trust X-Forwarded-For from the Vercel proxy)
+    const ip = (req.headers["x-forwarded-for"]?.split(",")[0] || req.socket.remoteAddress || "unknown").trim()
+    const gate = rateLimit(ip, Date.now())
+    if (!gate.ok) {
+      log(`rate-limited ${ip}: ${gate.reason}`)
+      res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache" })
+      res.write(sse("error", { message: gate.reason }))
+      res.write(sse("done", {}))
+      res.end()
+      return
+    }
+
     const history = clientMessages.filter((m) => m.content).map((m) => `${m.role}: ${m.content}`).join("\n\n")
     const prompt = clientMessages.length === 1
       ? clientMessages[0].content
@@ -163,6 +198,7 @@ const server = http.createServer(async (req, res) => {
     const tools = createTools(send)
     const mcpServer = createSdkMcpServer({ name: "pixelrag", version: "1.0.0", tools })
 
+    inFlight++
     try {
       let sentText = false
       for await (const message of query({
@@ -191,6 +227,7 @@ const server = http.createServer(async (req, res) => {
       log("chat error:", String(err))
       send("error", { message: String(err) })
     } finally {
+      inFlight--
       res.end()
     }
   })

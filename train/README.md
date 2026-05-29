@@ -13,6 +13,43 @@ Original W&B run: <https://wandb.ai/yichuan_wang-uc-berkeley-electrical-engineer
 
 ---
 
+## Released model (best checkpoint)
+
+The trained LoRA adapters are published at
+[`Chrisyichuan/wiki-screenshot-embedding-lora`](https://huggingface.co/Chrisyichuan/wiki-screenshot-embedding-lora).
+You don't need to retrain to use the model — load the adapter on top of the base
+embedding model.
+
+- **Base model:** `Qwen/Qwen3-VL-Embedding-2B`
+- **Best checkpoint:** [`lora_vit/ckpt200`](https://huggingface.co/Chrisyichuan/wiki-screenshot-embedding-lora/tree/main/lora_vit/ckpt200)
+  — the ViT-LoRA run (`--lora-vit`) at step 200, our best overall checkpoint.
+  Each checkpoint folder is a standard PEFT adapter (`adapter_config.json` +
+  `adapter_model.safetensors`, ~102 MB).
+
+Load it with PEFT (see the model card's
+[Usage](https://huggingface.co/Chrisyichuan/wiki-screenshot-embedding-lora#usage)
+section):
+
+```python
+from peft import PeftModel
+from transformers import AutoModel
+
+base = AutoModel.from_pretrained("Qwen/Qwen3-VL-Embedding-2B")
+
+# Best checkpoint: ViT-LoRA, step 200
+model = PeftModel.from_pretrained(
+    base,
+    "Chrisyichuan/wiki-screenshot-embedding-lora",
+    subfolder="lora_vit/ckpt200",
+)
+```
+
+The repo also ships other checkpoints (`lora_vit/ckpt{100,150,200,250,300}`,
+plus alternative `dora_ls005/*` and `hyper3/*` configs) — point `subfolder` at
+any of them.
+
+---
+
 ## ⚠️ Before you start: two API keys
 
 You need **two API keys** to fully reproduce this run. Get them ready first:

@@ -115,7 +115,7 @@ pixelrag-build-index --embeddings-dir ./embeddings --output-dir ./index
 
 ## Training
 
-`pixelrag-train` LoRA fine-tunes `Qwen/Qwen3-VL-Embedding-2B` for visual document
+`pixelrag-train` LoRA fine-tunes `Qwen/Qwen3-VL-Embedding-2B` for webpage
 retrieval. See [`train/README.md`](train/README.md) for the full recipe.
 
 The trained adapters are published at

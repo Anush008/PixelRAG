@@ -146,10 +146,78 @@
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-sans);
+    position: relative;
     }
   html {
     @apply font-sans;
     }
+}
+
+/* ─── Atmospheric background: animated gradient mesh + grain ─── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(ellipse 80% 60% at 15% 0%, rgba(192, 149, 108, 0.10), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 85% 10%, rgba(150, 170, 140, 0.07), transparent 50%),
+    radial-gradient(ellipse 90% 70% at 50% 100%, rgba(180, 140, 100, 0.06), transparent 60%);
+  background-size: 200% 200%;
+  animation: mesh-drift 28s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+.dark body::before {
+  background:
+    radial-gradient(ellipse 80% 60% at 15% 0%, rgba(192, 149, 108, 0.10), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 85% 10%, rgba(120, 140, 110, 0.06), transparent 50%),
+    radial-gradient(ellipse 90% 70% at 50% 100%, rgba(160, 120, 80, 0.05), transparent 60%);
+}
+
+/* Fine grain overlay */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.4;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='256' height='256' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+}
+
+.dark body::after {
+  opacity: 0.5;
+}
+
+@keyframes mesh-drift {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 100% 100%; }
+}
+
+/* Staggered fade-up reveal */
+@keyframes reveal-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.reveal {
+  animation: reveal-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+/* Animated gradient text */
+.gradient-text {
+  background: linear-gradient(110deg, var(--primary), #d4a574 30%, var(--primary) 60%, #b8895c);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradient-shift 6s linear infinite;
+}
+
+@keyframes gradient-shift {
+  to { background-position: 200% center; }
 }
 
 /* Scrollbar */

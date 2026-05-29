@@ -127,17 +127,36 @@ function SearchPageContent() {
       <div className={`flex flex-col items-center gap-4 px-6 transition-all duration-300 ${hasSearched && (groups.length > 0 || error) ? "pb-4 pt-6" : "pb-8 pt-16"}`}>
         {!(hasSearched && (groups.length > 0 || error)) && (
           <div className="relative text-center">
-            {/* Radial gradient spotlight behind logo */}
-            <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-64 w-96 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(139,105,67,0.08)_0%,rgba(160,122,74,0.04)_40%,transparent_70%)] blur-2xl" />
-            <h1 className="relative font-display text-4xl font-bold tracking-tight sm:text-5xl">
-              Pixel<span className="text-primary">RAG</span>
+            <div
+              className="reveal mb-5 inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-4 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground backdrop-blur-sm"
+              style={{ animationDelay: "0ms" }}
+            >
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
+              </span>
+              15.7M screenshot tiles · indexed
+            </div>
+            <h1
+              className="reveal relative font-display text-5xl font-light leading-[1.05] tracking-tight sm:text-7xl"
+              style={{ animationDelay: "80ms" }}
+            >
+              Search Wikipedia
+              <br />
+              <span className="gradient-text font-normal italic">by what it looks like.</span>
             </h1>
-            <p className="relative mt-2 text-sm text-muted-foreground">
-              Pixel-level retrieval-augmented generation over Wikipedia
+            <p
+              className="reveal relative mx-auto mt-5 max-w-md text-[15px] leading-relaxed text-muted-foreground"
+              style={{ animationDelay: "160ms" }}
+            >
+              Pixel-level visual retrieval over rendered Wikipedia — search
+              screenshots with text or image queries.
             </p>
           </div>
         )}
-        <SearchBar onSearch={handleSearch} onReset={resetSearch} isLoading={isLoading} hasResults={hasSearched && groups.length > 0} defaultValue={initialQuery} />
+        <div className={`w-full max-w-2xl ${hasSearched && (groups.length > 0 || error) ? "" : "reveal"}`} style={{ animationDelay: "240ms" }}>
+          <SearchBar onSearch={handleSearch} onReset={resetSearch} isLoading={isLoading} hasResults={hasSearched && groups.length > 0} defaultValue={initialQuery} />
+        </div>
         {!(hasSearched && groups.length > 0) && <SearchControls options={searchOptions} onChange={setSearchOptions} />}
       </div>
 

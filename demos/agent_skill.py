@@ -7,7 +7,7 @@ search tool and synthesizes answers from visual retrieval results.
 
 Prerequisites:
     - ANTHROPIC_API_KEY env var set
-    - pixelrag-serve running on localhost:30001 (or set --endpoint)
+    - pixelrag serve running on localhost:30001 (or set --endpoint)
 
 Usage:
     # Interactive conversation with the agent

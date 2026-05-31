@@ -14,9 +14,6 @@ dependencies = [
 kiwix = ["libzim>=3.6.0"]
 distributed = ["boto3>=1.42.0"]
 
-[project.scripts]
-pixelrag-index = "pixelrag_index.pipelines:main"
-pixelrag-monitor = "pixelrag_index.monitor:main"
 
 [build-system]
 requires = ["hatchling"]

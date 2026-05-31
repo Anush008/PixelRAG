@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Visual Retrieval-Augmented Generation — render, embed, index, search, train"
 requires-python = ">=3.12"
 dependencies = [
+    "pixelrag-render",
     "anthropic>=0.102.0",
     "cef-capi-py>=131.3.5",
     "pymupdf>=1.27.2.3",
@@ -21,6 +22,26 @@ eval = [
     "datasets>=2.14",
     "huggingface-hub>=0.20",
 ]
+embed = ["pixelrag-embed"]
+index = ["pixelrag-index"]
+serve = ["pixelrag-serve"]
+all = ["pixelrag-embed", "pixelrag-index", "pixelrag-serve"]
+
+[project.scripts]
+pixelrag = "pixelrag.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pixelrag"]
+
+[tool.uv.sources]
+pixelrag-render = { workspace = true }
+pixelrag-embed = { workspace = true }
+pixelrag-index = { workspace = true }
+pixelrag-serve = { workspace = true }
 
 [tool.uv.workspace]
 members = ["render", "embed", "index", "serve", "train"]

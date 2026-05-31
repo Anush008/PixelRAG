@@ -79,35 +79,35 @@ a space where visual content is retrievable.
 
 ## Pipelines
 
-Five packages, each independently installable:
+Capture is the standalone `pixelshot` command; the rest of the pipeline runs through the
+`pixelrag` umbrella — `pixelrag <stage>`. Install only the stages you need:
 
-| Package             | What it does                                                    | Install                             |
-| ------------------- | --------------------------------------------------------------- | ----------------------------------- |
-| **pixelrag-render** | Document → image tiles — the `pixelshot` CLI (Playwright CDP, PDF) | `uv sync --package pixelrag-render` |
-| **pixelrag-embed**  | Tiles → vectors → FAISS index (three independent tools)         | `uv sync --package pixelrag-embed`  |
-| **pixelrag-index**  | Orchestrates the full pipeline: source → ingest → embed → index | `uv sync --package pixelrag-index`  |
-| **pixelrag-serve**  | FAISS search API (FastAPI, CPU or GPU)                          | `uv sync --package pixelrag-serve`  |
-| **pixelrag-train**  | LoRA fine-tuning for Qwen3-VL-Embedding                         | `cd train && uv sync`               |
+| Command | What it does | Install |
+| ------- | ------------ | ------- |
+| `pixelshot` | Document → image tiles (Playwright CDP, PDF) | `pip install pixelrag` |
+| `pixelrag chunk` · `embed` · `build-index` | Tiles → vectors → FAISS index | `pip install 'pixelrag[embed]'` |
+| `pixelrag index` | Orchestrates the full pipeline: source → ingest → embed → index | `pip install 'pixelrag[index]'` |
+| `pixelrag serve` | FAISS search API (FastAPI, CPU or GPU) | `pip install 'pixelrag[serve]'` |
+| `pixelrag-train` | LoRA fine-tuning for Qwen3-VL-Embedding | `cd train && uv sync` |
 
 ```
 render ←── index ──→ embed       serve (independent)       train → serve (HTTP)
 ```
 
-`render`/`embed`/`index`/`serve` share the root workspace. **`train` is a separate uv project**
-with its own pinned env (`torch==2.9.1+cu129`, `transformers==4.57.1`, cuDNN 9.20) — install it
-from inside `train/`, not from the root.
+**`train` is a separate uv project** with its own pinned env (`torch==2.9.1+cu129`,
+`transformers==4.57.1`, cuDNN 9.20) — install it from inside `train/`, not from the root.
 
 ### Search a pre-built index
 
 ```bash
-uv sync --package pixelrag-serve
+pip install 'pixelrag[serve]'
 
 # Download the pre-built Wikipedia index (8.28M pages) from Hugging Face
 # TODO: publish the index to Hugging Face, then replace <HF_REPO> below
 huggingface-cli download <HF_REPO> --repo-type dataset --local-dir ./index
 
 # Serve, then query
-pixelrag-serve --index-dir ./index --port 30001
+pixelrag serve --index-dir ./index --port 30001
 
 curl -X POST http://localhost:30001/search \
   -H "Content-Type: application/json" \
@@ -117,7 +117,7 @@ curl -X POST http://localhost:30001/search \
 ### Build an index from your own documents
 
 ```bash
-uv sync --package pixelrag-index
+pip install 'pixelrag[index]'
 
 # Create pixelrag.yaml
 cat > pixelrag.yaml << 'EOF'
@@ -134,8 +134,8 @@ output: ./my_index
 EOF
 
 # Build, then serve
-pixelrag-index build
-pixelrag-serve --index-dir ./my_index --port 30001
+pixelrag index build
+pixelrag serve --index-dir ./my_index --port 30001
 ```
 
 ### Render a page programmatically
@@ -149,12 +149,14 @@ tiles = render_url("https://en.wikipedia.org/wiki/Python", "./tiles")
 
 ### Embed tools (standalone)
 
-Each tool runs independently, without the orchestrator:
+Each stage runs independently, without the orchestrator:
 
 ```bash
-pixelrag-chunk --tiles-dir ./tiles
-pixelrag-embed --shard-dir ./tiles --output-dir ./embeddings --gpu-ids 0,1
-pixelrag-build-index --embeddings-dir ./embeddings --output-dir ./index
+pip install 'pixelrag[embed]'
+
+pixelrag chunk --tiles-dir ./tiles
+pixelrag embed --shard-dir ./tiles --output-dir ./embeddings --gpu-ids 0,1
+pixelrag build-index --embeddings-dir ./embeddings --output-dir ./index
 ```
 
 ### Training

@@ -1130,15 +1130,24 @@ wheels = [
 [[package]]
 name = "pixelrag"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "anthropic", marker = "sys_platform == 'linux'" },
     { name = "cef-capi-py", marker = "sys_platform == 'linux'" },
+    { name = "pixelrag-render", marker = "sys_platform == 'linux'" },
     { name = "pymupdf", marker = "sys_platform == 'linux'" },
     { name = "pyturbojpeg", marker = "sys_platform == 'linux'" },
 ]
 
 [package.optional-dependencies]
+all = [
+    { name = "pixelrag-embed", marker = "sys_platform == 'linux'" },
+    { name = "pixelrag-index", marker = "sys_platform == 'linux'" },
+    { name = "pixelrag-serve", marker = "sys_platform == 'linux'" },
+]
+embed = [
+    { name = "pixelrag-embed", marker = "sys_platform == 'linux'" },
+]
 eval = [
     { name = "aiohttp", marker = "sys_platform == 'linux'" },
     { name = "datasets", marker = "sys_platform == 'linux'" },
@@ -1148,6 +1157,12 @@ eval = [
     { name = "pillow", marker = "sys_platform == 'linux'" },
     { name = "tqdm", marker = "sys_platform == 'linux'" },
     { name = "trafilatura", marker = "sys_platform == 'linux'" },
+]
+index = [
+    { name = "pixelrag-index", marker = "sys_platform == 'linux'" },
+]
+serve = [
+    { name = "pixelrag-serve", marker = "sys_platform == 'linux'" },
 ]
 
 [package.metadata]
@@ -1160,12 +1175,19 @@ requires-dist = [
     { name = "openai", marker = "extra == 'eval'", specifier = ">=1.0" },
     { name = "pandas", marker = "extra == 'eval'", specifier = ">=2.0" },
     { name = "pillow", marker = "extra == 'eval'", specifier = ">=10.0" },
+    { name = "pixelrag-embed", marker = "extra == 'all'", editable = "embed" },
+    { name = "pixelrag-embed", marker = "extra == 'embed'", editable = "embed" },
+    { name = "pixelrag-index", marker = "extra == 'all'", editable = "index" },
+    { name = "pixelrag-index", marker = "extra == 'index'", editable = "index" },
+    { name = "pixelrag-render", editable = "render" },
+    { name = "pixelrag-serve", marker = "extra == 'all'", editable = "serve" },
+    { name = "pixelrag-serve", marker = "extra == 'serve'", editable = "serve" },
     { name = "pymupdf", specifier = ">=1.27.2.3" },
     { name = "pyturbojpeg", specifier = ">=2.2.0" },
     { name = "tqdm", marker = "extra == 'eval'", specifier = ">=4.60" },
     { name = "trafilatura", marker = "extra == 'eval'", specifier = ">=1.6" },
 ]
-provides-extras = ["eval"]
+provides-extras = ["eval", "embed", "index", "serve", "all"]
 
 [[package]]
 name = "pixelrag-embed"
@@ -2067,6 +2089,7 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/8a/85/237e446c25abced71e9c53d269f2cef5bab8a82b3f88a12e00c5368e7368/xxhash-3.7.0-cp312-cp312-musllinux_1_2_riscv64.whl", hash = "sha256:44fba4a5f1d179b7ddc7b3dc40f56f9209046421679b57025d4d8821b376fd8d", size = 275345, upload-time = "2026-04-25T11:06:42.525Z" },
     { url = "https://files.pythonhosted.org/packages/62/34/c2c26c0a6a9cc739bc2a5f0ae03ba8b87deb12b8bce35f7ac495e790dc6d/xxhash-3.7.0-cp312-cp312-musllinux_1_2_s390x.whl", hash = "sha256:31e3516a0f829d06ded4a2c0f3c7c5561993256bfa1c493975fb9dc7bfa828a1", size = 414056, upload-time = "2026-04-25T11:06:44.343Z" },
     { url = "https://files.pythonhosted.org/packages/a0/aa/5c58e9bc8071b8afd8dcf297ff362f723c4892168faba149f19904132bf4/xxhash-3.7.0-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:b59ee2ac81de57771a09ecad09191e840a1d2fae1ef684208320591055768f83", size = 191485, upload-time = "2026-04-25T11:06:46.262Z" },
+    { url = "https://files.pythonhosted.org/packages/c1/ca/d5174b4c36d10f64d4ca7050563138c5a599efb01a765858ddefc9c1202a/xxhash-3.7.0-cp313-cp313-android_21_arm64_v8a.whl", hash = "sha256:4b6d6b33f141158692bd4eafbb96edbc5aa0dabdb593a962db01a91983d4f8fa", size = 36813, upload-time = "2026-04-25T11:06:51.73Z" },
     { url = "https://files.pythonhosted.org/packages/bf/11/4cc834eb3d79f2f2b3a6ef7324195208bcdfbdcf7534d2b17267aa5f3a8f/xxhash-3.7.0-cp313-cp313-ios_13_0_arm64_iphoneos.whl", hash = "sha256:fddbbb69a6fff4f421e7a0d1fa28f894b20112e9e3fab306af451e2dfd0e459b", size = 29624, upload-time = "2026-04-25T11:06:54.311Z" },
     { url = "https://files.pythonhosted.org/packages/23/83/e97d3e7b635fe73a1dfb1e91f805324dd6d930bb42041cbf18f183bc0b6d/xxhash-3.7.0-cp313-cp313-ios_13_0_arm64_iphonesimulator.whl", hash = "sha256:54876a4e45101cec2bf8f31a973cda073a23e2e108538dad224ba07f85f22487", size = 30638, upload-time = "2026-04-25T11:06:55.864Z" },
     { url = "https://files.pythonhosted.org/packages/f4/40/d84951d80c35db1f4c40a29a64a8520eea5d56e764c603906b4fe763580f/xxhash-3.7.0-cp313-cp313-ios_13_0_x86_64_iphonesimulator.whl", hash = "sha256:0c72fe9c7e3d6dfd7f1e21e224a877917fa09c465694ba4e06464b9511b65544", size = 33323, upload-time = "2026-04-25T11:06:57.336Z" },

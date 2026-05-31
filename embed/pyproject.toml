@@ -16,10 +16,6 @@ dependencies = [
 [project.optional-dependencies]
 gpu = ["faiss-gpu-cu12>=1.13.2"]
 
-[project.scripts]
-pixelrag-chunk = "pixelrag_embed.chunk:main"
-pixelrag-embed = "pixelrag_embed.embed:main"
-pixelrag-build-index = "pixelrag_embed.index:main"
 
 [build-system]
 requires = ["hatchling"]

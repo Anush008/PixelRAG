@@ -75,13 +75,13 @@ embed:
 output: ./my_index
 EOF
 
-uv run --package pixelrag-index pixelrag-index build --config pixelrag.yaml --limit 100
+uv run pixelrag index build --config pixelrag.yaml --limit 100
 ```
 
 Then serve it:
 ```bash
 PIXELRAG_INDEX_DIR=./my_index PIXELRAG_ARTICLES_JSON=./my_index/articles.json \
-uv run --package pixelrag-serve pixelrag-serve --port 31337
+uv run pixelrag serve --port 31337
 ```
 
 ### 4. Start/Check Serving
@@ -93,7 +93,7 @@ curl -s http://localhost:30001/health
 # Start serving a pre-built index
 PIXELRAG_INDEX_DIR=/home/yichuan/pixelrag-data/text_search_index_1024 \
 PIXELRAG_ARTICLES_JSON=/home/yichuan/pixelrag-data/articles.json \
-uv run --package pixelrag-serve pixelrag-serve --port 30001 &
+uv run pixelrag serve --port 30001 &
 ```
 
 ## When to Use
@@ -109,4 +109,4 @@ uv run --package pixelrag-serve pixelrag-serve --port 30001 &
 - The search API embeds queries on CPU (~1-2s per query). For faster queries, use GPU.
 - Pre-built Wikipedia indexes are at `/home/yichuan/pixelrag-data/`.
 - The ingest CDP backend is fastest (~1s per page). Playwright backend has more options.
-- For large-scale embedding, use GPU machines with `pixelrag-embed` (vLLM/sglang backend).
+- For large-scale embedding, use GPU machines with `pixelrag embed` (vLLM/sglang backend).

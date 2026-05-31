@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """End-to-end demo: Wikipedia → visual search index → query.
 
-Demonstrates the full PixelRAG pipeline via pixelrag-index:
+Demonstrates the full PixelRAG pipeline via pixelrag index:
   source → ingest → chunk → embed → build index → serve → search
 
 Run:

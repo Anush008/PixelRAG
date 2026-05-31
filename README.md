@@ -173,9 +173,8 @@ so you can adapt other backbones yourself — a larger Qwen, or any other embedd
 
 Thanks to [Claude Code](https://github.com/anthropics/claude-code) and
 [OpenAI Codex](https://github.com/openai/codex) for supporting open-source contributors with credits and plans,
-which we earned by working on [LEANN](https://github.com/StarTrail-org/LEANN),
-[FAISS](https://github.com/facebookresearch/faiss), and
-[Playwright](https://github.com/microsoft/playwright).
+which we earned by working on [LEANN](https://github.com/StarTrail-org/LEANN).
+Thanks also to [Rulin Shao](https://rulinshao.github.io/) for support.
 
 ## License
 

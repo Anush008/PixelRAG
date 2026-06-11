@@ -85,6 +85,89 @@ async def _cdp_send(ws, msg_id_ref: list, method: str, params: dict | None = Non
             return r.get("result", {})
 
 
+# Max time to wait for the `load` event (and for the optional network-idle wait)
+# before giving up and capturing whatever is there. Keeps a hanging page from
+# stalling a worker.
+LOAD_TIMEOUT_MS = 12_000
+# Network is considered idle once no new resource has been fetched for this long.
+NET_QUIET_MS = 500
+
+
+def _readiness_expr(wait_network_idle: bool) -> str:
+    """Build the in-page readiness probe.
+
+    Always waits for the `load` event before measuring (with a
+    ``readyState === 'complete'`` shortcut so an already-loaded page returns
+    immediately, and a hard timeout so a hanging page can't block). Without this,
+    a client-rendered (SPA) page is measured/captured mid-hydration at a transient
+    layout — often much taller than the settled page — producing blank tiles. SSR
+    pages (e.g. Wikipedia) fire `load` almost immediately, so this adds ~no cost.
+
+    When ``wait_network_idle`` is set, also waits (after load) until no new
+    resource has been fetched for ``NET_QUIET_MS`` — for SPAs that fetch their
+    content *after* load. This costs a quiet window per page, so it is opt-in
+    (the pixelbrowse skill / single-page renders), not the batch default.
+
+    Returns an async-IIFE expression resolving to the page height to tile.
+    """
+    idle_step = ""
+    if wait_network_idle:
+        idle_step = f"""
+        await new Promise(res => {{
+            let timer;
+            let obs;
+            const finish = () => {{ try {{ obs && obs.disconnect(); }} catch (e) {{}}
+                                    clearTimeout(timer); clearTimeout(hard); res(); }};
+            const bump = () => {{ clearTimeout(timer); timer = setTimeout(finish, {NET_QUIET_MS}); }};
+            try {{
+                obs = new PerformanceObserver(bump);
+                obs.observe({{ type: 'resource', buffered: true }});
+            }} catch (e) {{}}
+            const hard = setTimeout(finish, {LOAD_TIMEOUT_MS});
+            bump();
+        }});"""
+    return f"""(async () => {{
+        await new Promise(res => {{
+            if (document.readyState === 'complete') return res();
+            const t = setTimeout(res, {LOAD_TIMEOUT_MS});
+            window.addEventListener('load', () => {{ clearTimeout(t); res(); }}, {{ once: true }});
+        }});{idle_step}
+        await document.fonts.ready;
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+        document.documentElement.style.scrollBehavior = 'auto';
+        const sh = document.documentElement.scrollHeight;
+        const body = document.body;
+        if (body) {{
+            const bottom = Math.ceil(body.getBoundingClientRect().bottom);
+            return Math.min(sh, Math.max(bottom, 1));
+        }}
+        return sh;
+    }})()"""
+
+
+# Before capturing a tile below the first one, scroll it into view and wait for
+# its now-visible images to load. The capture clip uses absolute page coordinates,
+# but Chrome only rasterizes content near the viewport — without scrolling, tiles
+# past the first (e.g. on a small tile_height) come back blank. Mirrors fast_cdp.
+_SCROLL_WAIT = """new Promise(resolve => {{
+    window.scrollTo(0, {y});
+    requestAnimationFrame(() => requestAnimationFrame(() => {{
+        const imgs = Array.from(document.images).filter(i => {{
+            if (i.complete) return false;
+            const r = i.getBoundingClientRect();
+            return r.bottom > 0 && r.top < window.innerHeight;
+        }});
+        if (imgs.length === 0) return resolve();
+        const timeout = new Promise(r => setTimeout(r, 500));
+        const loaded = Promise.all(imgs.map(i => new Promise(r => {{
+            i.addEventListener('load', r, {{once: true}});
+            i.addEventListener('error', r, {{once: true}});
+        }})));
+        Promise.race([loaded, timeout]).then(resolve);
+    }}));
+}})"""
+
+
 async def capture_url(
     ws,
     msg_id_ref: list,
@@ -96,6 +179,7 @@ async def capture_url(
     viewport_w: int = VIEWPORT_W,
     image_format: str = "jpeg",
     from_surface: bool = True,
+    wait_network_idle: bool = False,
 ) -> int:
     """Capture a URL as tiled images via direct CDP websocket.
 
@@ -105,29 +189,14 @@ async def capture_url(
 
     await _cdp_send(ws, msg_id_ref, "Page.navigate", {"url": url})
 
-    # Wait for fonts + layout to stabilize, return scrollHeight in one call
+    # Wait for load (+ optional network-idle) + fonts + layout to stabilize,
+    # return the page height to tile in one call. See _readiness_expr.
     result = await _cdp_send(
         ws,
         msg_id_ref,
         "Runtime.evaluate",
         {
-            "expression": """new Promise(resolve => {
-            document.fonts.ready.then(() => {
-                requestAnimationFrame(() => {
-                    requestAnimationFrame(() => {
-                        document.documentElement.style.scrollBehavior = 'auto';
-                        const sh = document.documentElement.scrollHeight;
-                        const body = document.body;
-                        if (body) {
-                            const bottom = Math.ceil(body.getBoundingClientRect().bottom);
-                            resolve(Math.min(sh, Math.max(bottom, 1)));
-                        } else {
-                            resolve(sh);
-                        }
-                    });
-                });
-            });
-        })""",
+            "expression": _readiness_expr(wait_network_idle),
             "awaitPromise": True,
             "returnByValue": True,
         },
@@ -145,6 +214,19 @@ async def capture_url(
         clip_h = min(tile_h, page_height - y)
         if clip_h <= 0:
             break
+
+        # Scroll the tile into view so Chrome rasterizes it (tiles past the first
+        # are otherwise blank). The top tile is already in view after load.
+        if idx > 0:
+            try:
+                await _cdp_send(
+                    ws,
+                    msg_id_ref,
+                    "Runtime.evaluate",
+                    {"expression": _SCROLL_WAIT.format(y=y), "awaitPromise": True},
+                )
+            except Exception:
+                pass
 
         params = {
             "format": image_format,
@@ -205,6 +287,7 @@ async def _worker(
     viewport_w: int,
     image_format: str,
     from_surface: bool,
+    wait_network_idle: bool,
     worker_id: int,
     stats: dict,
     results: list,
@@ -224,6 +307,10 @@ async def _worker(
         msg_id_ref = [0]
 
         await _cdp_send(ws, msg_id_ref, "Page.enable")
+        if wait_network_idle:
+            # PerformanceObserver (used by the idle wait) needs no CDP domain, but
+            # enabling Network keeps resource timing reliable across navigations.
+            await _cdp_send(ws, msg_id_ref, "Network.enable")
         await _cdp_send(
             ws,
             msg_id_ref,
@@ -258,6 +345,7 @@ async def _worker(
                     viewport_w=viewport_w,
                     image_format=image_format,
                     from_surface=from_surface,
+                    wait_network_idle=wait_network_idle,
                 )
                 stats["done"] += 1
                 elapsed = time.monotonic() - t0
@@ -287,6 +375,7 @@ async def _run_batch(
     viewport_w: int,
     image_format: str,
     from_surface: bool,
+    wait_network_idle: bool,
     stems: list[str] | None,
     chrome_path: str,
 ) -> list[Path]:
@@ -329,6 +418,7 @@ async def _run_batch(
             viewport_w,
             image_format,
             from_surface,
+            wait_network_idle,
             wid,
             stats,
             results,
@@ -352,6 +442,7 @@ def render_urls(
     workers: int = 4,
     image_format: str = "jpeg",
     from_surface: bool = True,
+    wait_network_idle: bool = False,
     chrome_path: str | None = None,
 ) -> list[Path]:
     """Render URLs to tiled images using direct CDP websocket.
@@ -370,6 +461,11 @@ def render_urls(
         image_format: 'jpeg' or 'png' (default 'jpeg').
         from_surface: CDP fromSurface param. True for batch (throughput),
                       False for serve (low latency). Default True.
+        wait_network_idle: After the load event, also wait until the network has
+                      been quiet (no new resources) for ~500ms before capturing.
+                      Helps SPAs that fetch content after load; costs a quiet
+                      window per page, so it is off by default (batch throughput)
+                      and meant for single-page / interactive renders.
         chrome_path: Path to Chrome binary. Auto-detected if None.
 
     Returns:
@@ -393,6 +489,7 @@ def render_urls(
             viewport_width,
             image_format,
             from_surface,
+            wait_network_idle,
             stems,
             chrome,
         )

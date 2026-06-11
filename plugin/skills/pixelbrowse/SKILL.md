@@ -17,13 +17,13 @@ Use `pixelshot` to capture any URL or document as tiled JPEG images, then read t
 
 ```bash
 # Screenshot a URL (optimized for Claude's vision: 1568px tile height)
-pixelshot <url> --output /tmp/pixelbrowse --tile-height 1568
+pixelshot <url> --output /tmp/pixelbrowse --tile-height 1568 --wait-network-idle
 
 # Screenshot multiple URLs in parallel
-pixelshot <url1> <url2> --output /tmp/pixelbrowse --tile-height 1568 --workers 4
+pixelshot <url1> <url2> --output /tmp/pixelbrowse --tile-height 1568 --wait-network-idle --workers 4
 
 # Wider viewport for desktop layouts
-pixelshot <url> --output /tmp/pixelbrowse --tile-height 1568 --viewport-width 1280
+pixelshot <url> --output /tmp/pixelbrowse --tile-height 1568 --viewport-width 1280 --wait-network-idle
 
 # Render a PDF
 pixelshot document.pdf --output /tmp/pixelbrowse
@@ -33,11 +33,16 @@ IMPORTANT: Always use `--tile-height 1568` for screenshots you will read visuall
 Claude's vision model downscales images with long edge > 1568px (Sonnet/Haiku) or 2576px (Opus).
 The default 8192px tile height will be downscaled and text becomes unreadable.
 
+IMPORTANT: Always use `--wait-network-idle` for URLs. Without it, JavaScript-heavy
+pages (most modern sites / single-page apps) are captured before they finish rendering
+and come back blank or half-empty. It waits for the page's load event plus a brief
+network-quiet window so client-rendered content is actually on screen.
+
 After rendering, read the tile images from the output directory to visually understand the content.
 
 ## Workflow
 
-1. Run `pixelshot <url> --output /tmp/pixelbrowse`
+1. Run `pixelshot <url> --output /tmp/pixelbrowse --tile-height 1568 --wait-network-idle`
 2. Read `/tmp/pixelbrowse/<domain>.png.tiles/tile_0000.jpg` directly (no need to ls — the naming is deterministic)
 3. If the page is long, also read tile_0001.jpg, tile_0002.jpg, etc.
 

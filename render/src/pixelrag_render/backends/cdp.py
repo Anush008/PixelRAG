@@ -141,7 +141,13 @@ def _readiness_expr(wait_network_idle: bool) -> str:
             window.addEventListener('load', () => {{ clearTimeout(t); res(); }}, {{ once: true }});
         }});{idle_step}
         await document.fonts.ready;
-        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+        // Let layout settle over two frames — but cap it: requestAnimationFrame
+        // never ticks in some headless modes (e.g. google-chrome --headless=new
+        // with no compositor frames scheduled), where awaiting rAF would hang.
+        await Promise.race([
+            new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))),
+            new Promise(r => setTimeout(r, 1000)),
+        ]);
         document.documentElement.style.scrollBehavior = 'auto';
         const sh = document.documentElement.scrollHeight;
         const body = document.body;
@@ -159,6 +165,9 @@ def _readiness_expr(wait_network_idle: bool) -> str:
 # past the first (e.g. on a small tile_height) come back blank. Mirrors fast_cdp.
 _SCROLL_WAIT = """new Promise(resolve => {{
     window.scrollTo(0, {y});
+    // Safety net: requestAnimationFrame may never tick in headless modes that
+    // don't schedule frames, which would leave this promise unresolved.
+    setTimeout(resolve, 1500);
     requestAnimationFrame(() => requestAnimationFrame(() => {{
         const imgs = Array.from(document.images).filter(i => {{
             if (i.complete) return false;

@@ -402,3 +402,10 @@ one launch command per run, each adding a single knob. Results are summarized in
 
 For maintainer notes on training internals, hard-negative filtering, dataset
 packaging, and tests, see [`docs/training_dev_notes.md`](./docs/training_dev_notes.md).
+
+## Data Curation
+
+Visualization of some very early version of the training data:
+[early training data viewer](https://yichuan-w.github.io/share/blog-review-first100-light/)
+
+Reproduce: TBD

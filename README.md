@@ -205,20 +205,6 @@ curl -X POST http://localhost:30001/search \
 
 </details>
 
-### Render a page (CLI)
-
-```bash
-# Web page → tiles (uses a headless Chromium via CDP)
-pixelshot https://en.wikipedia.org/wiki/Python -o ./tiles
-
-# PDF → tiles (requires poppler; install the pdf extra: pip install 'pixelrag[pdf]')
-curl -sL -o paper.pdf https://arxiv.org/pdf/2503.09516
-pixelshot paper.pdf -o ./tiles --dpi 200
-
-# Multiple inputs at once — URLs and local files can be mixed freely
-pixelshot https://github.com/StarTrail-org/PixelRAG paper.pdf -o ./tiles
-```
-
 ### Render a page programmatically
 
 ```python
@@ -226,6 +212,20 @@ from pixelrag_render import render_url
 
 # render a single page to tiles — e.g. for an agent to read
 tiles = render_url("https://en.wikipedia.org/wiki/Python", "./tiles")
+```
+
+The same rendering is available as a CLI — `pixelshot` ships with `pip install pixelrag`:
+
+```bash
+# Web page → tiles (headless Chromium via CDP)
+pixelshot https://en.wikipedia.org/wiki/Python -o ./tiles
+
+# PDF → tiles (requires poppler; install the pdf extra: pip install 'pixelrag[pdf]')
+curl -sL -o paper.pdf https://arxiv.org/pdf/2503.09516
+pixelshot paper.pdf -o ./tiles --dpi 200
+
+# URLs and local files can be mixed freely
+pixelshot https://github.com/StarTrail-org/PixelRAG paper.pdf -o ./tiles
 ```
 
 ### Embed tools (standalone)

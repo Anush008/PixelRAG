@@ -205,6 +205,19 @@ curl -X POST http://localhost:30001/search \
 
 </details>
 
+### Render a page (CLI)
+
+```bash
+# Web page → tiles (uses a headless Chromium via CDP)
+pixelshot https://en.wikipedia.org/wiki/Python -o ./tiles
+
+# PDF → tiles (requires poppler; install the pdf extra: pip install 'pixelrag[pdf]')
+pixelshot paper.pdf -o ./tiles --dpi 200
+
+# Multiple inputs at once
+pixelshot https://example.com ./local.html report.pdf -o ./tiles
+```
+
 ### Render a page programmatically
 
 ```python

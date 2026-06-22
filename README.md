@@ -212,10 +212,11 @@ curl -X POST http://localhost:30001/search \
 pixelshot https://en.wikipedia.org/wiki/Python -o ./tiles
 
 # PDF → tiles (requires poppler; install the pdf extra: pip install 'pixelrag[pdf]')
+curl -sL -o paper.pdf https://arxiv.org/pdf/2503.09516
 pixelshot paper.pdf -o ./tiles --dpi 200
 
-# Multiple inputs at once
-pixelshot https://example.com ./local.html report.pdf -o ./tiles
+# Multiple inputs at once — URLs and local files can be mixed freely
+pixelshot https://github.com/StarTrail-org/PixelRAG paper.pdf -o ./tiles
 ```
 
 ### Render a page programmatically

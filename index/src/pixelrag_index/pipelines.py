@@ -89,20 +89,38 @@ def build(config: dict, limit: int | None = None, force: bool = False) -> Path:
             "  Rendered %d URLs (%d skipped, already exist)", len(new_url_docs), skipped
         )
 
-    # Render PDFs
+    # Render PDFs — use idx as tile directory name (like URLs) so directory
+    # names are always the numeric article_id.
     for idx, doc in pdf_docs:
         try:
-            render_pdf(doc.path, str(tiles_dir))
+            render_pdf(doc.path, str(tiles_dir), stem=str(idx))
         except Exception as e:
             logger.warning("  FAILED PDF %s: %s", doc.id, e)
     if pdf_docs:
         logger.info("  Rendered %d PDFs", len(pdf_docs))
 
-    # Save articles.json for serve API — title + URL per article.
-    # Use the pipeline's sequential *position index* (0, 1, 2, …) rather than
-    # int(a["id"]), because local sources use filename stems (e.g. "art_alice")
-    # as doc IDs, which are not numeric. int() on a filename stem raises ValueError
-    # and crashes the entire index build step.
+    # Write article_id into each tile directory's manifest so the embed
+    # pipeline can read it explicitly instead of guessing from the directory
+    # name. This is the authoritative source of article_id — directory names
+    # are for humans, manifests are for the pipeline.
+    tile_dir_map: dict[int, Path] = {}
+    for idx, _ in url_docs + pdf_docs + image_docs:
+        tile_path = tiles_dir / f"{idx}.png.tiles"
+        if tile_path.is_dir():
+            tile_dir_map[idx] = tile_path
+    for idx, tile_path in tile_dir_map.items():
+        for manifest_name in ("tiles.json", "chunks.json"):
+            manifest_path = tile_path / manifest_name
+            if manifest_path.exists():
+                try:
+                    manifest = json.loads(manifest_path.read_text())
+                    manifest["article_id"] = idx
+                    manifest_path.write_text(json.dumps(manifest))
+                except (json.JSONDecodeError, OSError):
+                    pass
+
+    # Save articles.json for serve API — maps article_id (array index) to
+    # human-readable title + URL.
     articles_path = output / "articles.json"
     article_entries = []
     for enum_idx, a in enumerate(articles):
@@ -110,7 +128,6 @@ def build(config: dict, limit: int | None = None, force: bool = False) -> Path:
         if not title and a.get("url"):
             title = a["url"].split("/")[-1].replace("_", " ").replace("%20", " ")
         if not title:
-            # Fall back to original doc id (e.g. filename stem) as display title
             title = a.get("id", str(enum_idx))
         url = a.get("url", "") or a.get("path", "")
         article_entries.append({"title": title, "url": url})

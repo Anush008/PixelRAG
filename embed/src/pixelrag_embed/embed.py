@@ -264,13 +264,14 @@ def scan_shard_tiles(
         if not meta.get("complete", False):
             continue
 
-        # Extract article_id from directory name: "3104240.png.tiles" -> 3104240
-        dir_name = tiles_dir.name  # e.g. "3104240.png.tiles"
-        try:
-            article_id = int(dir_name.split(".")[0])
-        except (ValueError, IndexError):
-            logger.warning("Cannot parse article_id from %s", dir_name)
-            continue
+        article_id = meta.get("article_id")
+        if article_id is None:
+            dir_name = tiles_dir.name
+            try:
+                article_id = int(dir_name.split(".")[0])
+            except (ValueError, IndexError):
+                logger.warning("Cannot parse article_id from %s", dir_name)
+                continue
 
         if article_id in skip:
             continue
@@ -343,12 +344,14 @@ def scan_shard_chunks(
             logger.warning("Skipping %s: %s", chunks_json, e)
             continue
 
-        dir_name = tiles_dir.name
-        try:
-            article_id = int(dir_name.split(".")[0])
-        except (ValueError, IndexError):
-            logger.warning("Cannot parse article_id from %s", dir_name)
-            continue
+        article_id = meta.get("article_id")
+        if article_id is None:
+            dir_name = tiles_dir.name
+            try:
+                article_id = int(dir_name.split(".")[0])
+            except (ValueError, IndexError):
+                logger.warning("Cannot parse article_id from %s", dir_name)
+                continue
 
         if article_id in skip:
             continue

@@ -11,8 +11,14 @@ The reproduction script just runs the pipeline and prints a score. Run the reade
 
 ```bash
 cd eval
-uv sync --frozen        # creates eval/.venv from pyproject.toml + uv.lock (Python 3.12)
+uv sync --frozen        # base client (retrieval + reader + grader over HTTP); Python 3.12
+
+# Optional — to self-host the Qwen3.5-4B reader from this package (needs a CUDA GPU):
+uv sync --frozen --extra reader   # also installs vLLM 0.19.0 into eval/.venv
 ```
+
+The base install is a pure HTTP client — no torch/vllm. The `reader` extra adds vLLM so you
+can serve the reader from the same venv; vLLM needs `numpy<2.3`, hence the numpy bound.
 
 Grader needs an OpenAI key with access to `gpt-4.1-2025-04-14`. `reproduce.sh` auto-loads
 `OPENAI_API_KEY` / `OPENAI_BASE_URL` from `../.env`.
@@ -21,7 +27,7 @@ Grader needs an OpenAI key with access to `gpt-4.1-2025-04-14`. `reproduce.sh` a
 
 | role | default port | index / model | notes |
 |------|------|------|------|
-| **reader** | `READER_URL` :8010 | `Qwen/Qwen3.5-4B`, **vLLM 0.19.0**, **H100** | `CUDA_VISIBLE_DEVICES=0 HF_HOME=… vllm serve Qwen/Qwen3.5-4B --port 8010` on an H100; tunnel it to :8010 |
+| **reader** | `READER_URL` :8010 | `Qwen/Qwen3.5-4B`, **vLLM 0.19.0**, **H100** | install via `uv sync --extra reader`, then `CUDA_VISIBLE_DEVICES=0 HF_HOME=… .venv/bin/vllm serve Qwen/Qwen3.5-4B --port 8010` on an H100 (tunnel to :8010 if remote) |
 | base pixel | :30088 | `search_index_normed_v2` (wiki, 28.2M), base encoder, direct_gpu | multimodal query |
 | lora pixel | :30096 | wiki lora-vit-ckpt200 index (26.3M) | multimodal query |
 | traf text  | :30097 | `text_search_index_1024_normed` (wiki, 15.7M, nprobe 128) | text query |
@@ -60,8 +66,11 @@ reach it three ways — pick one:
    retrieved tile inline as base64; or set `TILES_DIR` to read the tiles from the reader's
    local disk instead. Full self-host.
 2. **Public API (no self-hosting).** Point the retrieval URL at the public endpoint
-   (`api.ds-serve.org` / `api.pixelrag.ai`) instead of a local serve. It returns base64 tiles,
-   so you only run the reader + grader — no index, no tile corpus.
+   (e.g. `http://api.pixelrag.ai:30001/search`) instead of a local serve. It returns base64
+   tiles, so you only run the reader + grader — no index, no tile corpus. Note: `:30001`
+   serves the **un-normed** base index (`search_index`), which does **not** match the paper's
+   `base`/`lora` cells (those use `search_index_normed_v2`) — handy for exercising the pipeline,
+   but self-host the normed index to match the paper numbers. Command in §3.
 3. **Self-hosted serve, index + on-demand render.** Run the serve with the index but **no** tile
    corpus, started with an on-demand renderer; it renders each retrieved page to tiles at query
    time and returns them as base64. Needs the kiwix ZIM, not the ~4T corpus.
@@ -78,6 +87,19 @@ bash reproduce.sh <bench> <retrieval>
 bash reproduce.sh evqa base       # -> prints  Score: 0.4xx
 bash reproduce.sh mms lora
 NUM=20 bash reproduce.sh nq traf  # NUM overrides the example count for a quick smoke
+```
+
+`reproduce.sh` targets **self-hosted serves on localhost** (modes 1/3 above). To run a cell
+against the **public API** (mode 2), drive `run_bench.py` directly — `reproduce.sh` hardcodes
+`localhost`, so it can't point at a remote serve:
+
+```bash
+# NQ via the public base endpoint (exact-match grading — no OpenAI key needed):
+.venv/bin/python run_bench.py --task nq --model Qwen/Qwen3.5-4B \
+  --api-base "$READER_URL" --api-key dummy --no-think \
+  --retrieval-top-k 5 --reader-top-k 3 --num-examples 1000 --max-tokens 200 \
+  --local-api --local-api-url http://api.pixelrag.ai:30001/search \
+  --query-instruction "Retrieve images or text relevant to the user's query."
 ```
 
 Before running, `reproduce.sh` runs a **preflight**: it curls the reader and the retrieval

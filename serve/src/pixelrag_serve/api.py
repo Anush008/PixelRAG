@@ -579,11 +579,19 @@ def load(args):
     device = args.device
     dtype = torch.float32 if device == "cpu" else torch.bfloat16
 
-    # Load FAISS index
+    # Load FAISS index. PIXELRAG_INDEX_MMAP=1 memory-maps the index instead of reading the
+    # whole file into RAM — startup is near-instant (no full read of a multi-100G index over
+    # NFS), and inverted lists are paged in on demand at query time. Great when only a subset
+    # of the index is touched (e.g. a few hundred eval queries); the OS page cache keeps hot
+    # lists resident across queries.
     index_path = os.path.join(args.index_dir, "index.faiss")
     logger.info("Loading FAISS index from %s...", index_path)
     t0 = time.time()
-    index = faiss.read_index(index_path)
+    if os.environ.get("PIXELRAG_INDEX_MMAP"):
+        logger.info("(mmap mode: lists paged in on demand)")
+        index = faiss.read_index(index_path, faiss.IO_FLAG_MMAP)
+    else:
+        index = faiss.read_index(index_path)
     logger.info("Loaded index: %d vectors in %.1fs", index.ntotal, time.time() - t0)
 
     # Load metadata

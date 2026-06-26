@@ -94,7 +94,7 @@ against the **public API** (mode 2), drive `run_bench.py` directly — `reproduc
 `localhost`, so it can't point at a remote serve:
 
 ```bash
-# NQ via the public base endpoint (exact-match grading — no OpenAI key needed):
+# NQ via the public base endpoint (then grade — see §5; the paper used --llm-judge):
 .venv/bin/python run_bench.py --task nq --model Qwen/Qwen3.5-4B \
   --api-base "$READER_URL" --api-key dummy --no-think \
   --retrieval-top-k 5 --reader-top-k 3 --num-examples 1000 --max-tokens 200 \
@@ -111,7 +111,7 @@ Per-cell config is locked inside `reproduce.sh`:
 
 | bench | think | max_tokens | n | grader | notes |
 |-------|-------|-----------|---|--------|-------|
-| nq / nqt | no-think | 200 | 1000 / all | exact-match | |
+| nq / nqt | no-think | 200 | 1000 / all | LLM-judge¹ | ¹paper numbers used the gpt-4.1 judge; `reproduce.sh` passes `--llm-judge` (needs the OpenAI key) |
 | sqa | no-think | 200 | 1000 | SimpleQA judge | nprobe 2000 |
 | mms (base/lora/traf) | **think** | 16384 | all | WorldVQA judge | pixel instr = V1 "Retrieve images or text relevant to the user's query." |
 | mms (naive) | no-think | 200 | all | WorldVQA judge | |
@@ -133,6 +133,11 @@ Paper Table 1 (Qwen3.5-4B, k=3):
 
 On H100, this harness reproduces the pixel cells (LiveVQA/MMS/EVQA base+lora) within ~1pp.
 
+NOTE on NQ/NQ-Tables grading: the paper's published numbers use the **gpt-4.1 LLM judge**
+(semantic match), not strict exact-match. The reader answers short but paraphrases the gold
+span, so strict exact-match scores ~20pp lower (≈ the naive number) even when the answer is
+right. Grade these cells with `--llm-judge` (what `reproduce.sh` does) to match the paper.
+
 NOTE on traf (text retrieval): `reproduce.sh` passes `--no-query-image` to match the paper's
 text-only text retrieval.
 
@@ -142,7 +147,10 @@ text-only text retrieval.
 - WorldVQA judge (mmsearch / encyclopedic_vqa): prompt verbatim, GT for EVQA =
   `"Any of: " + " | ".join(reference_list)` (any reference matches → correct), `<think>` stripped,
   judge gpt-4.1 temp 0 + `system="You are a helpful assistant."` + `seed=42` + `max_tokens=1000`.
-- exact-match (nq / nq_tables): SQuAD-style normalize + match against the gold answer list.
+- nq / nq_tables: **default** strict exact-match (SQuAD normalize + equality vs the gold list,
+  no API key). Pass `--llm-judge` to grade with the gpt-4.1 judge instead — that is what the
+  paper used for its published NQ/NQT numbers (strict exact-match runs ~20pp lower because the
+  reader paraphrases). `reproduce.sh` uses `--llm-judge` for these cells.
 - SimpleQA judge (simpleqa): the SimpleQA `GRADER_TEMPLATE` → A/B/C.
 
 ```bash

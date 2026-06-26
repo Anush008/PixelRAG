@@ -115,4 +115,8 @@ echo ">>> [$BENCH/$RETR] run_bench: reader=$READER_URL task=$TASK think=$THINK m
     $EXTRA "${RFLAGS[@]}"
 
 echo ">>> [$BENCH/$RETR] grading ($GRADE)"
-PYTHONPATH=. "$PY" -m lib.grader "$GRADE" "$OUT"
+# nq/nqt: the paper's published numbers used the LLM judge (semantic match), not strict
+# exact-match — grade with --llm-judge to match. (For strict exact-match, drop the flag.)
+JUDGEFLAG=""; case "$GRADE" in nq|nq_tables) JUDGEFLAG="--llm-judge" ;; esac
+# shellcheck disable=SC2086
+PYTHONPATH=. "$PY" -m lib.grader "$GRADE" "$OUT" $JUDGEFLAG

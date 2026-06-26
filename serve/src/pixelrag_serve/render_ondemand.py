@@ -11,12 +11,17 @@ referenced chunk), using the exact build config: viewport_width=875, tile_height
 and the shared ``pixelrag_embed.chunk`` slicer (1024px chunks).
 """
 
+import glob
 import os
 import shutil
+import subprocess
+import sys
 import threading
 from urllib.parse import quote
 
 _render_lock = threading.Lock()  # one Chrome render at a time per process
+# Hard timeout (seconds) for a single page render subprocess.
+_RENDER_TIMEOUT = float(os.environ.get("PIXELRAG_RENDER_TIMEOUT", "120"))
 
 
 class OnDemandTiles:
@@ -58,22 +63,46 @@ class OnDemandTiles:
         return cpath if os.path.exists(cpath) else None
 
     def _render_and_chunk(self, article_id: int, title: str) -> None:
-        from pixelrag_render import render_url
         from pixelrag_embed.chunk import chunk_article
 
         url = f"{self.kiwix_url}/content/{self.book}/{quote(title, safe='')}"
         staging = os.path.join(self.cache_dir, f".render_{article_id}")
         shutil.rmtree(staging, ignore_errors=True)
-        dirs = render_url(
-            url,
-            staging,
-            viewport_width=self.viewport_width,
-            tile_height=self.tile_height,
+        os.makedirs(staging, exist_ok=True)
+        # Render in a SEPARATE PROCESS. render_url internally uses asyncio.run() +
+        # multiprocessing.Pool (fork); calling it a second time in this long-lived
+        # serve process deadlocks (fork-in-threaded-process). A fresh subprocess per
+        # render is the reliable fix — verified: same-process 2nd render hangs, a
+        # fresh process per render does not.
+        code = (
+            "import sys; from pixelrag_render import render_url; "
+            "render_url(sys.argv[1], sys.argv[2], "
+            "viewport_width=int(sys.argv[3]), tile_height=int(sys.argv[4]))"
         )
+        try:
+            subprocess.run(
+                [
+                    sys.executable,
+                    "-c",
+                    code,
+                    url,
+                    staging,
+                    str(self.viewport_width),
+                    str(self.tile_height),
+                ],
+                check=True,
+                timeout=_RENDER_TIMEOUT,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+            shutil.rmtree(staging, ignore_errors=True)
+            return
+        dirs = glob.glob(os.path.join(staging, "*.png.tiles"))
         if not dirs:
             shutil.rmtree(staging, ignore_errors=True)
             return
-        rendered = str(dirs[0])  # <sanitized-url>.png.tiles/ (has tiles.json)
+        rendered = dirs[0]  # <sanitized-url>.png.tiles/ (has tiles.json)
         chunk_article(rendered)  # writes chunk_XXXX_YY.png + chunks.json
         dest = self._article_dir(article_id)
         shutil.rmtree(dest, ignore_errors=True)

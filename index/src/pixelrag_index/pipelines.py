@@ -123,12 +123,14 @@ def build(config: dict, limit: int | None = None, force: bool = False) -> Path:
 
         def _resolve_relative_paths(html_str: str, base_dir: str) -> str:
             """Rewrite relative src/href paths to file:// so the browser can load them."""
+
             def _repl(m: re.Match) -> str:
                 attr, quote, url = m.group(1), m.group(2), m.group(3)
                 if url.startswith(("http://", "https://", "file://", "data:", "#")):
                     return m.group(0)
                 resolved = (Path(base_dir) / url).resolve()
-                return f'{attr}={quote}{resolved.as_uri()}{quote}'
+                return f"{attr}={quote}{resolved.as_uri()}{quote}"
+
             return re.sub(r'(src|href)=(["\'])([^"\']+)\2', _repl, html_str)
 
         text_urls = []
@@ -142,7 +144,9 @@ def build(config: dict, limit: int | None = None, force: bool = False) -> Path:
                 content = src_path.read_text(errors="replace")
                 ext = (doc.metadata or {}).get("extension", src_path.suffix.lower())
                 if ext == ".md":
-                    body = md_lib.markdown(content, extensions=["tables", "fenced_code"])
+                    body = md_lib.markdown(
+                        content, extensions=["tables", "fenced_code"]
+                    )
                 else:
                     body = f"<pre>{html_mod.escape(content)}</pre>"
                 body = _resolve_relative_paths(body, str(src_path.parent))
@@ -155,7 +159,11 @@ def build(config: dict, limit: int | None = None, force: bool = False) -> Path:
             if text_urls:
                 text_ingest = {k: v for k, v in ingest_cfg.items() if k != "backend"}
                 render_urls(
-                    text_urls, str(tiles_dir), backend="cdp", stems=text_stems, **text_ingest
+                    text_urls,
+                    str(tiles_dir),
+                    backend="cdp",
+                    stems=text_stems,
+                    **text_ingest,
                 )
         logger.info("  Rendered %d text files (.md/.txt)", len(text_docs))
 
